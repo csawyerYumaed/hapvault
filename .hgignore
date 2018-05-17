@@ -1,0 +1,8 @@
+luasocket/
+main
+socket
+json-lua/
+luasocket-build/
+haproxy/
+haproxy-auth-request/
+Pipfile*

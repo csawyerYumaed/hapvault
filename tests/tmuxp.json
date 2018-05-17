@@ -1,0 +1,32 @@
+{
+	"windows": [
+	  {
+	    "panes": [
+	      {
+		"shell_command": [
+		  "vault server -dev -dev-root-token-id=root"
+		]
+	      }, 
+	      {"shell_command":[
+		      "./main &",
+		      "haproxy -f tests/haproxy.cfg"
+	      ]},
+	      {"shell_command":[
+		      "cd tests/protected; python2 -m SimpleHTTPServer"
+	      ]},
+	      {"shell_command":[
+		      "export VAULT_ADDR=http://127.0.0.1:8200",
+		      "export VAULT_TOKEN=root",
+		      "vault token create -policy default -id=test",
+		      "curl http://127.0.0.1:8100"
+	      ]}
+	    ], 
+	    "shell_command_before": [
+	      "cd ~/wk/hapvault"
+	    ], 
+	    "layout": "tiled", 
+	    "window_name": "hapvault window"
+	  }
+	], 
+	"session_name": "hapvault"
+      }

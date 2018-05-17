@@ -1,0 +1,18 @@
+To make the tests go:
+
+you need to compile main.go:
+	go build main.go
+	it is a very simple syslog wrapper, since HAProxy only logs to syslog.
+	Otherwise alter tmuxp.json (or ignore tmux and do it all by hand.)
+you need tmux (https://github.com/tmux/tmux/wiki)
+you need tmuxp (https://github.com/tmux-python/tmuxp)
+you need curl: (https://curl.haxx.se/)
+you need python2 (or some other simple https server running.)
+you need haproxy and vault binaries in your path.
+you need the hapvault requirements(see main readme)
+
+The tests are pretty miserable, and still mostly done by hand, but this is a reasonable start at showing it all working. so maybe it's an example more than it is tests, whatever.
+
+Feel free to send better tests!
+
+edit tmuxp.json the shell_command_before needs to point to your copy of hapvault's repo.
