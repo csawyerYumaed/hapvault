@@ -14,14 +14,14 @@ Requirements
 
 * HAProxy 1.8.? (works on 1.8.8) or greater (www.haproxy.org)
 * Lua 5.3 compiled in (maybe older versions work.. no clue)
-* Hashicorp's Vault  (www.vaultproject.io)
+* Hashicorp's Vault  (www.vaultproject.io) served over HTTPS
 * Luasocket compiled and in your path somewhere (https://github.com/diegonehab/luasocket)
 * Some login page somewhere that sets a cookie with the vault token.
 
 Configuration
 ------------------
 
-see tests/haproxy.cfg for example.
+See tests/haproxy.cfg for example.
 You need to create a backend(in the example it is called hapvault)
 that connects to your vault (i.e. server $VAULT_ADDR) basically.
 
@@ -42,13 +42,13 @@ If you want it to be something other than service= change the .lua file.
 Sadly I have no idea how to get a better copy of the full request url
 out of HAProxy, if you have better, please let me know!
 
-so now we have the frontend configured with the 2 headers we need.
+So now we have the frontend configured with the 2 headers we need.
 and we have the backend for hapvault configured, so now in the backend you want protected add lines like this:
 
   http-request lua.hapvault hapvault vault-token default
   http-request redirect location %[var(txn.auth_redirect_location)]  if { var(txn.auth_redirect) -m bool }
 
-the first http-request line can be broken down like this:
+The first http-request line can be broken down like this:
 
 1. http-request keyword(HAProxy)
 2. this http-request needs to use the hapvault.lua file.
@@ -68,24 +68,6 @@ The second http-request line can be broken down like this:
 txn.auth_redirect comes from hapvault.  It's set if we need to redirect to the login page.
 
 If you have vault LDAP auth configured correctly, then your policies are coming from your LDAP server as well, so you can allow requests based on LDAP groups.
-
-There is a TON of debug information stuffed into hapvault.lua right now, some of
-it may contain secret/valuable data , you have been warned.
-
-Cookie/header format
----------------------------
-
-The code *AS WRITTEN* assumes the cookie coming in has 2 parts in the value
-USERNAME:VAULT_TOKEN
-This is something specific to our implementation, but we like it.
-
-If you do not want this, and want the value to be just the pure vault token, then edit hapvault.lua search for SETTING and you should see what you need to do.
-
-basically you just comment out the next two code lines by prepending with --
-
-see, easy peasy!
-
-Now we should be all setup, and haproxy should start doing the right thing!
 
 Flow of request
 -------------------
@@ -107,6 +89,47 @@ Variables hapvault returns to HAProxy
 * txn.auth_redirect boolean, default true.
 * txn.auth_response_code integer, the code returned by vault. default 0
 * txn.auth_user the username attached to the token. default nil
+
+Security Considerations
+-----------------------------
+
+Your login system(not included here) can on vault login create a new reduced
+token, with policies that basically do nothing other than set policy names for
+this code.  Also when creating new tokens , you can set their timeout to be
+under the default of 32 days as well.  These would both be good practice to
+implement in your login system.
+
+One could also make them wrapped, and give them a limited # of uses, but
+that would be hard to predict. If you go down this route, I would be curious
+how it works out for you.
+
+Also you should set your cookies to be HttpOnly and Secure and set the domain
+and path accordingly.
+For more information see:
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
+
+The Hashicorp Vault web UI uses localStorage instead of cookies, but I
+believe the only way to use local Storage is with Javascript, which is sad.
+They don't even use SessionStorage, which seems weird, but plain
+localStorage.
+
+Regardless, if you want to use sessionStorage, you can
+with this code, just send the token as a header.
+
+More information about localStorage vs Cookies is available here:
+https://stackoverflow.com/questions/3220660/local-storage-vs-cookies#3220802
+
+Better security suggestions and code changes are very welcome.
+
+VAULT SSL
+----------------
+
+ If you really can't be bothered to host your vault over SSL, you can edit hapvault.lua, change the request_url value to http://
+and change the:
+   create = create_sock_ssl,
+to:
+   create = create_sock,
+Doing this is a bad idea.
 
 3rd party code included in this repo
 -------------------------------------------

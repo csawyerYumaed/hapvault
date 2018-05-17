@@ -98,11 +98,11 @@ core.register_action(
 		end
 		vault_token = token_value
 
-		-- txn:Debug("hapvault:splitting:" .. vault_token)
+		txn:Debug("hapvault:splitting:" .. vault_token)
 		--SETTING
 		--this is local ot my use-case I need the token to be a : split of username:vault token
-		-- if you do not need this, comment out the next 2 lines with --
-		email, vault_token = split_token(vault_token)
+		-- if you do not need this, comment out the next line with --
+		-- email, vault_token = split_token(vault_token)
 
 		headers["X-Vault-Token"] = vault_token
 		-- txn:Debug("set X-Vault-Token header to:" .. vault_token)
@@ -117,9 +117,11 @@ core.register_action(
 		-- Check whether the given backend has servers that
 		-- are not `DOWN`.
 		local addr = nil
+		local backend_name = nil
 		for name, server in pairs(core.backends[backend].servers) do
+			backend_name = name
 			local stats = server:get_stats()
-			for k,v in pairs(stats) do txn:Debug(k .. ": " .. v) end
+			-- for k,v in pairs(stats) do txn:Debug("backend:" .. k .. ": " .. v) end
 			if stats["status"] ~= "DOWN" then
 				addr = server:get_addr()
 				break
@@ -130,7 +132,7 @@ core.register_action(
 			txn:set_var("txn.auth_response_code", 500)
 			return
 		end
-
+		
 		request_url = "http://" .. addr .. "/v1/auth/token/lookup-self"
 		txn:Debug("backend url:" .. request_url)
 		-- for k,v in pairs(headers) do txn:Debug("hapvault:sending to vault headers:" .. k .. ": " .. v) end

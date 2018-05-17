@@ -16,10 +16,11 @@
 	      ]},
 	      {"shell_command":[
 		      "export VAULT_ADDR=http://127.0.0.1:8200",
-		      "export VAULT_TOKEN=root",
-		      "vault token create -policy default -id=test",
-		      "curl http://127.0.0.1:8100"
-	      ]}
+					"export VAULT_TOKEN=root",
+		      "vault token create -policy default -id=62d5a938-0bb9-ede4-5fab-594fab9f94ae"	,
+					"curl http://127.0.0.1:8100",
+					"curl --cookie 'vault-token=62d5a938-0bb9-ede4-5fab-594fab9f94ae' http://127.0.0.1:8100"
+					      ]}
 	    ], 
 	    "shell_command_before": [
 	      "cd ~/wk/hapvault"
