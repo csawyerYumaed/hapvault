@@ -1,7 +1,8 @@
 -- Copyright 2018 Craig Sawyer
--- License MIT/Apache 2 at your preference.
+-- License MIT.
 -- see LICENSE
 -- lots of thanks to https://github.com/TimWolla/haproxy-auth-request
+-- Portions are Copyright (c) 2018 Tim Düsterhus
 
 local json = require("JSON")
 local http = require("socket.http")
@@ -53,21 +54,26 @@ function split(str,pat)
 -- this code changes that to tito@example
 -- and then shoves a .org at the end, you may have to change that.
 -- If you don't want this, then just change the get_username to not call this.
-function get_email(body) 
+function get_email(txn, body) 
 	if body['data']['display_name'] == nil then
 		return ''
 	else
 		display_name = body['data']['display_name']
 		r = split(display_name, "[^-]*")
 		domain = r[1]
+		if domain == 'ldap' then
+			return ''
+		end
 		user = r[3]
 		email = user .. "@" .. domain .. ".org"
+		return email
 	end
 end
 
-function get_username(body) 
-	email = get_email(body)
+function get_username(txn, body) 
+	email = get_email(txn, body)
 	if email ~= '' then
+		-- txn:Debug("hapvault: returning an email:" .. email)
 		return email
 	end
 	if body['data']['meta'] == nil then
@@ -77,7 +83,7 @@ function get_username(body)
 	end
 end
 
--- creates a sink that stores into a table
+-- creates a sink that stores into a table for getting the body of the subrequest into a string.
 function sink_table(t)
     t = t or {}
     local f = function(chunk, err)
@@ -93,7 +99,7 @@ core.register_action(
 	function(txn, backend, token, policy)
 		txn:set_var("txn.auth_response_successful", false)
 		txn:set_var("txn.auth_redirect", true)
-		txn:set_var("txn.auth_response_code", 0)
+		txn:set_var("txn.auth_response_code", 500)
 		txn:set_var("txn.auth_user", nil)
 
 		-- Transform table of request headers from haproxy's to
@@ -121,23 +127,19 @@ core.register_action(
 		end
 		txn:set_var("txn.auth_redirect_location", headers["x-redirect-url"] .. "?service=" .. headers["x-requesting-url"])
 		
-		cookie_email = nil
 		for k,v in pairs(cookies) do 
 			if k == token then
 				token_value = v
 			end
-			if k == "cp-email" then
-				cookie_email = v
-			end
 			-- txn:Debug("hapvault:cookies:" .. k .. ": " .. v) 
 		end
+
 		-- token checkout time!
 		-- if we do not have it around, just punt and kick the user off to authenticate.
 		-- this is the fast path.
 		if token_value == nil then
-			-- txn:Info("hapvault:adding Location header:" .. headers["x-redirect-url"])
-			-- txn.http:req_set_header("Location", redirect_addr .. h["location"])
-			txn:set_var("txn.auth_redirect", true)
+			-- txn:Info("hapvault: no token, redirecting")
+			txn:set_var("txn.auth_response_code", 500)
 			return
 		end
 		vault_token = token_value
@@ -207,7 +209,7 @@ core.register_action(
 				txn:Warning("Not Valid JSON:" .. body_string)
 				txn:set_var("txn.auth_response_code", 500)
 			else
-				local username = get_username(body)
+				local username = get_username(txn, body)
 				for k,v in pairs(body['data']['policies']) do
 					-- txn:Debug("hapvoult:policy:" .. v)
 					if v == policy then

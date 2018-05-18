@@ -21,7 +21,7 @@ Requirements
 Configuration
 ------------------
 
-See tests/haproxy.cfg for example.
+See tests/haproxy.cfg for example. instructions for that in tests/README
 You need to create a backend(in the example it is called hapvault)
 that connects to your vault (i.e. server $VAULT_ADDR) basically.
 
@@ -90,6 +90,9 @@ Variables hapvault returns to HAProxy
 * txn.auth_response_code integer, the code returned by vault. default 0
 * txn.auth_user the username attached to the token. default nil
 
+It will try to magically create an email address for the username, if possible based on the mount path.
+This probably isn't useful to most of you, but it is for us.  It should not affect anyone with the mount path of 'ldap' as it will skip over this. see get_email function for details.
+
 Security Considerations
 -----------------------------
 
@@ -129,7 +132,7 @@ and change the:
    create = create_sock_ssl,
 to:
    create = create_sock,
-Doing this is a bad idea.
+Doing this is a bad idea. But useful for testing against a local vault.
 
 3rd party code included in this repo
 -------------------------------------------
