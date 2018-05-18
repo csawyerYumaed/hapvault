@@ -52,22 +52,22 @@ function split(str,pat)
 -- so now your display name would become example-tito
 -- this code changes that to tito@example
 -- and then shoves a .org at the end, you may have to change that.
---
+-- If you don't want this, then just change the get_username to not call this.
 function get_email(body) 
 	if body['data']['display_name'] == nil then
-		return nil
+		return ''
 	else
 		display_name = body['data']['display_name']
 		r = split(display_name, "[^-]*")
 		domain = r[1]
-		user = r[2]
+		user = r[3]
 		email = user .. "@" .. domain .. ".org"
 	end
 end
 
 function get_username(body) 
 	email = get_email(body)
-	if email ~= nil then
+	if email ~= '' then
 		return email
 	end
 	if body['data']['meta'] == nil then
@@ -121,13 +121,13 @@ core.register_action(
 		end
 		txn:set_var("txn.auth_redirect_location", headers["x-redirect-url"] .. "?service=" .. headers["x-requesting-url"])
 		
-		email = nil
+		cookie_email = nil
 		for k,v in pairs(cookies) do 
 			if k == token then
 				token_value = v
 			end
 			if k == "cp-email" then
-				email = v
+				cookie_email = v
 			end
 			-- txn:Debug("hapvault:cookies:" .. k .. ": " .. v) 
 		end
@@ -172,7 +172,7 @@ core.register_action(
 		end
 		
 		request_url = "https://" .. addr .. "/v1/auth/token/lookup-self"
-		txn:Debug("backend url:" .. request_url)
+		-- txn:Debug("backend url:" .. request_url)
 		-- for k,v in pairs(headers) do txn:Debug("hapvault:sending to vault headers:" .. k .. ": " .. v) end
 		
 		-- Make request to backend.
@@ -207,7 +207,7 @@ core.register_action(
 				txn:Warning("Not Valid JSON:" .. body_string)
 				txn:set_var("txn.auth_response_code", 500)
 			else
-				username = get_username(body)
+				local username = get_username(body)
 				for k,v in pairs(body['data']['policies']) do
 					-- txn:Debug("hapvoult:policy:" .. v)
 					if v == policy then
