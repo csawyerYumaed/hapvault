@@ -39,23 +39,42 @@ function decode_body(body_string)
 	end
 	return body
 end
+function split(str,pat)
+	local tbl={}
+	str:gsub(pat,function(x) tbl[#tbl+1]=x end)
+	return tbl
+      end
 
-function get_username(body) 
-	if body['meta'] then
-		return body['meta']['username']
+--
+-- This assumes your mount point for ldap is the same as your domain name
+-- i.e. vault auth -enable ldap -path example
+-- if you then auth as tito
+-- so now your display name would become example-tito
+-- this code changes that to tito@example
+-- and then shoves a .org at the end, you may have to change that.
+--
+function get_email(body) 
+	if body['data']['display_name'] == nil then
+		return nil
 	else
-		return ''
+		display_name = body['data']['display_name']
+		r = split(display_name, "[^-]*")
+		domain = r[1]
+		user = r[2]
+		email = user .. "@" .. domain .. ".org"
 	end
 end
 
-function split_token(val)
-	local email = nil
-	local vault_token = nil
-	for k, v in string.gmatch(val, "(%w+):(%w+)") do
-		email = k
-		vault_token = v	
+function get_username(body) 
+	email = get_email(body)
+	if email ~= nil then
+		return email
 	end
-	return email, vault_token
+	if body['data']['meta'] == nil then
+		return ''
+	else
+		return body['data']['meta']['username']
+	end
 end
 
 -- creates a sink that stores into a table
@@ -101,10 +120,14 @@ core.register_action(
 			end
 		end
 		txn:set_var("txn.auth_redirect_location", headers["x-redirect-url"] .. "?service=" .. headers["x-requesting-url"])
-
+		
+		email = nil
 		for k,v in pairs(cookies) do 
 			if k == token then
 				token_value = v
+			end
+			if k == "cp-email" then
+				email = v
 			end
 			-- txn:Debug("hapvault:cookies:" .. k .. ": " .. v) 
 		end
