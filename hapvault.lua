@@ -28,6 +28,26 @@ function create_sock_ssl()
 	return sock
 end
 
+json.onDecodeError = function (message, text, location, etc)
+	return "SUCKIT"
+end
+
+function decode_body(body_string)
+	local body = json:decode(body_string, decode_error)
+	if body == "SUCKIT" then
+		return nil
+	end
+	return body
+end
+
+function get_username(body) 
+	if body['meta'] then
+		return body['meta']['username']
+	else
+		return ''
+	end
+end
+
 function split_token(val)
 	local email = nil
 	local vault_token = nil
@@ -80,6 +100,8 @@ core.register_action(
 				end
 			end
 		end
+		txn:set_var("txn.auth_redirect_location", headers["x-redirect-url"] .. "?service=" .. headers["x-requesting-url"])
+
 		for k,v in pairs(cookies) do 
 			if k == token then
 				token_value = v
@@ -93,16 +115,9 @@ core.register_action(
 			-- txn:Info("hapvault:adding Location header:" .. headers["x-redirect-url"])
 			-- txn.http:req_set_header("Location", redirect_addr .. h["location"])
 			txn:set_var("txn.auth_redirect", true)
-			txn:set_var("txn.auth_redirect_location", headers["x-redirect-url"] .. "?service=" .. headers["x-requesting-url"])
 			return
 		end
 		vault_token = token_value
-
-		txn:Debug("hapvault:splitting:" .. vault_token)
-		--SETTING
-		--this is local ot my use-case I need the token to be a : split of username:vault token
-		-- if you do not need this, comment out the next line with --
-		-- email, vault_token = split_token(vault_token)
 
 		headers["X-Vault-Token"] = vault_token
 		-- txn:Debug("set X-Vault-Token header to:" .. vault_token)
@@ -133,7 +148,7 @@ core.register_action(
 			return
 		end
 		
-		request_url = "http://" .. addr .. "/v1/auth/token/lookup-self"
+		request_url = "https://" .. addr .. "/v1/auth/token/lookup-self"
 		txn:Debug("backend url:" .. request_url)
 		-- for k,v in pairs(headers) do txn:Debug("hapvault:sending to vault headers:" .. k .. ": " .. v) end
 		
@@ -145,7 +160,7 @@ core.register_action(
 			headers = headers,
 			sink = sink_table(ret),
 			target = ret,
-			-- create = create_sock_ssl,
+			create = create_sock_ssl,
 			-- create = create_sock,
 			-- Disable redirects, because DNS does not work here.
 			redirect = false}
@@ -153,7 +168,7 @@ core.register_action(
 
 		-- Check whether we received a valid HTTP response.
 		if r == nil then
-			txn:Warning("hapvault:Failure in auth-request backend '" .. backend .. "': " .. c)
+			txn:Warning("hapvault:Failure in connecting to backend: '" .. backend .. "': " .. c)
 			txn:set_var("txn.auth_response_code", 500)
 			return
 		end
@@ -162,22 +177,28 @@ core.register_action(
 		
 		-- 2xx: Allow request.
 		if 200 <= c and c < 300 then
-			local body = json:decode(table.concat(ret))
-			-- txn:Info("body from auth backend:" .. body)
-			for k,v in pairs(body['data']['policies']) do
-				-- txn:Debug("hapvoult:policy:" .. v)
-				if v == policy then
-					txn:set_var("txn.auth_response_successful", true)
-					txn:set_var("txn.auth_redirect", false)
-					txn:set_var("txn.auth_response_code", c)
-					txn:set_var("txn.auth_user", email)
+			local body_string = table.concat(ret)
+			-- local body_string = "NOT VALID JSON"
+			local body = decode_body(body_string)
+			if body == nil then
+				txn:Warning("Not Valid JSON:" .. body_string)
+				txn:set_var("txn.auth_response_code", 500)
+			else
+				username = get_username(body)
+				for k,v in pairs(body['data']['policies']) do
+					-- txn:Debug("hapvoult:policy:" .. v)
+					if v == policy then
+						txn:set_var("txn.auth_response_successful", true)
+						txn:set_var("txn.auth_redirect", false)
+						txn:set_var("txn.auth_response_code", c)
+						txn:set_var("txn.auth_user", username)
+					end
 				end
 			end
 		else
 			-- 400 vault permission denied, so either a bad token, or no token sent for whatever reason.
 			-- txn:Debug("hapvault:status code in auth-request backend '" .. backend .. "': " .. c)
 			-- txn:Debug("hapvault:adding Location header:" .. headers["x-redirect-url"])
-			txn:set_var("txn.auth_redirect_location", headers["x-redirect-url"] .. "?service=" .. headers["x-requesting-url"])
 			txn:set_var("txn.auth_response_code", c)
 		end
 	end,
