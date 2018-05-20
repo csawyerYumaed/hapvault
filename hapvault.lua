@@ -71,11 +71,11 @@ function get_email(txn, body)
 end
 
 function get_username(txn, body) 
-	email = get_email(txn, body)
-	if email ~= '' then
+	-- email = get_email(txn, body)
+	-- if email ~= '' then
 		-- txn:Debug("hapvault: returning an email:" .. email)
-		return email
-	end
+	--		return email
+	-- end
 	if body['data']['meta'] == nil then
 		return ''
 	else

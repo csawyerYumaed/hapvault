@@ -18,6 +18,18 @@ Requirements
 * Luasocket compiled and in your path somewhere (https://github.com/diegonehab/luasocket)
 * Some login page somewhere that sets a cookie with the vault token.
 
+Installation
+-------------
+
+just git clone into your haproxy dir.
+on ubuntu/debian systems I've had to:
+
+  mkdir -p /usr/local/share/lua/5.3/
+  cp cookie.lua /usr/local/share/lua/5.3/
+  cp JSON.lua /usr/local/share/lua/5.3/
+
+YMMV.
+
 Configuration
 ------------------
 
@@ -106,18 +118,16 @@ One could also make them wrapped, and give them a limited # of uses, but
 that would be hard to predict. If you go down this route, I would be curious
 how it works out for you.
 
-Also you should set your cookies to be HttpOnly and Secure and set the domain
-and path accordingly.
-For more information see:
+Also you should set your cookies to Secure and set the domain and path
+accordingly.  For more information see:
 https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
 
 The Hashicorp Vault web UI uses localStorage instead of cookies, but I
 believe the only way to use local Storage is with Javascript, which is sad.
-They don't even use SessionStorage, which seems weird, but plain
-localStorage.
 
 Regardless, if you want to use sessionStorage, you can
-with this code, just send the token as a header.
+with this code, just send the token as a header, named the same as you set in
+haproxy.cfg
 
 More information about localStorage vs Cookies is available here:
 https://stackoverflow.com/questions/3220660/local-storage-vs-cookies#3220802
@@ -132,7 +142,7 @@ and change the:
    create = create_sock_ssl,
 to:
    create = create_sock,
-Doing this is a bad idea. But useful for testing against a local vault.
+Doing this is a bad idea. But useful for testing against a local vault in -dev mode.
 
 3rd party code included in this repo
 -------------------------------------------
