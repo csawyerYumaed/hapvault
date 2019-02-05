@@ -19,12 +19,10 @@ local SEMICOLON = byte(";")
 local SPACE = byte(" ")
 local HTAB = byte("\t")
 
-local cookie_table = {}
-
 local cookiemodule = {}
 function cookiemodule.get_cookie_table(text_cookie)
 	if type(text_cookie) ~= "string" then
-		return cookie_table
+		return {}
 	end
 	local EXPECT_KEY = 1
 	local EXPECT_VALUE = 2
@@ -38,6 +36,9 @@ function cookiemodule.get_cookie_table(text_cookie)
 			n = n + 1
 		end
 	end
+	
+	local cookie_table = {}
+	
 	local state = EXPECT_SP
 	local i = 1
 	local j = 1
